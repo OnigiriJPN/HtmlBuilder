@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Mid-Class HTML/CSS Generator with Exporter</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --sidebar-bg: #f8fafc;
+            --border-color: #cbd5e1;
+            --text-main: #1e293b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; display: grid; grid-template-columns: 260px 1fr 320px; height: 100vh; overflow: hidden; color: var(--text-main); }
+
+        /* 左サイドバー */
+        aside.left-panel {
+            background: var(--sidebar-bg); border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; padding: 16px; gap: 16px; overflow-y: auto;
+        }
+        h2 { font-size: 1rem; border-bottom: 2px solid var(--primary); padding-bottom: 4px; }
+        .component-list { display: flex; flex-direction: column; gap: 6px; }
+        .component-item {
+            background: white; border: 1px solid var(--border-color);
+            padding: 8px 12px; border-radius: 4px; cursor: grab; font-size: 0.85rem;
+            user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .component-item:hover { background: #eff6ff; border-color: var(--primary); }
+
+        .add-custom {
+            border-top: 1px solid var(--border-color);
+            padding-top: 12px; display: flex; flex-direction: column; gap: 6px;
+        }
+        .add-custom input, .add-custom textarea {
+            width: 100%; padding: 6px; font-size: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px;
+        }
+        .add-custom button {
+            background: var(--primary); color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;
+        }
+
+        /* 中央キャンバス */
+        main.canvas-area {
+            display: flex; flex-direction: column; background: #ffffff; height: 100vh; overflow: hidden;
+        }
+        .toolbar {
+            padding: 8px 16px; background: #f1f5f9; border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;
+        }
+        .workspace {
+            flex: 1; padding: 24px; overflow-y: auto; border: 2px dashed #94a3b8; margin: 16px; border-radius: 6px; background: #fafafa;
+        }
+        .workspace.drag-over { background: #eff6ff; border-color: var(--primary); }
+
+        .node-element {
+            padding: 12px; margin: 8px 0; background: white; border: 1px solid var(--border-color);
+            border-radius: 4px; position: relative; cursor: pointer; transition: all 0.1s;
+        }
+        .node-element:hover { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
+        .node-element.selected { border: 2px solid var(--primary); background: #f8fafc; }
+
+        /* 右サイドバー：プロパティ & エクスポート */
+        aside.right-panel {
+            background: var(--sidebar-bg); border-left: 1px solid var(--border-color);
+            display: flex; flex-direction: column; padding: 16px; gap: 12px; overflow-y: auto;
+        }
+        .property-group { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; }
+        .property-group label { font-weight: bold; }
+        .property-group input, .property-group select { padding: 4px; border: 1px solid var(--border-color); border-radius: 4px; }
+        
+        .code-output-box { display: flex; flex-direction: column; gap: 2px; }
+        .code-box {
+            background: #0f172a; color: #38bdf8; padding: 8px; font-family: monospace; font-size: 0.7rem;
+            height: 100px; overflow-y: auto; border-radius: 4px; white-space: pre-wrap;
+        }
+        
+        .export-actions {
+            display: flex; gap: 6px; margin-top: 4px;
+        }
+        .export-btn {
+            flex: 1; background: #0f172a; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; text-align: center;
+        }
+        .export-btn.primary { background: var(--primary); }
+        .export-btn:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+
+    <!-- 左サイドバー -->
+    <aside class="left-panel">
+        <h2>コンポーネント</h2>
+        <div class="component-list" id="componentList">
+            <div class="component-item" draggable="true" data-html="<div></div>" data-label="ディブタグ">ディブタグ (&lt;div&gt;)</div>
+            <div class="component-item" draggable="true" data-html="<button>ボタン</button>" data-label="ボタン">ボタン (&lt;button&gt;)</div>
+            <div class="component-item" draggable="true" data-html="<p>段落テキスト</p>" data-label="段落">p (段落)</div>
+            <div class="component-item" draggable="true" data-html="<h1>見出し</h1>" data-label="見出し">hn (見出し)</div>
+            <div class="component-item" draggable="true" data-html="<input type='text' placeholder='フォーム'>" data-label="フォーム">フォーム (&lt;form&gt;)</div>
+            <div class="component-item" draggable="true" data-html="<isindex>" data-label="isindex">isindex (レトロ)</div>
+            <div class="component-item" draggable="true" data-html="<div class='tab-ui'>[タブUI]</div>" data-label="タブ">タブ (モダンUI)</div>
+            <div class="component-item" draggable="true" data-html="<dialog open>[モーダルUI]</dialog>" data-label="モーダル">モーダル (モダンUI)</div>
+            <div class="component-item" draggable="true" data-html="<details><summary>アコーディオン</summary>中身</details>" data-label="アコーディオン">アコーディオン</div>
+        </div>
+
+        <div class="add-custom">
+            <h2>パーツ拡張</h2>
+            <input type="text" id="customName" placeholder="パーツ名">
+            <textarea id="customHtml" placeholder="HTMLスニペット" rows="2"></textarea>
+            <button id="addCustomBtn">パレットに追加</button>
+        </div>
+    </aside>
+
+    <!-- 中央キャンバス -->
+    <main class="canvas-area">
+        <div class="toolbar">
+            <span>💡 要素をクリックして右側でスタイル編集・書き出し</span>
+            <button id="clearBtn" style="background:#ef4444; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">すべてクリア</button>
+        </div>
+        <div class="workspace" id="workspace">
+            <p style="color: #94a3b8; text-align: center; margin-top: 40px;">ここにパーツをドラッグ＆ドロップ</p>
+        </div>
+    </main>
+
+    <!-- 右サイドバー -->
+    <aside class="right-panel">
+        <h2>プロパティ編集</h2>
+        <div id="propertyEditor" class="property-group">
+            <p style="color: #64748b; font-size: 0.8rem;">要素が選択されていません</p>
+        </div>
+
+        <h2>コード & 変換</h2>
+        <div class="code-output-box">
+            <label>HTMLコード</label>
+            <div class="code-box" id="htmlOutput">&lt;!-- 要素なし --&gt;</div>
+        </div>
+        <div class="code-output-box">
+            <label>CSSコード</label>
+            <div class="code-box" id="cssOutput">/* スタイルなし */</div>
+        </div>
+
+        <div class="export-actions">
+            <button class="export-btn" id="copyCodeBtn">コードコピー</button>
+            <button class="export-btn primary" id="downloadZipBtn">ZIP保存風DL</button>
+        </div>
+        <div class="export-actions">
+            <button class="export-btn" id="shareDataBtn">共有用データ生成</button>
+        </div>
+    </aside>
+
+    <script>
+        const componentList = document.getElementById('componentList');
+        const workspace = document.getElementById('workspace');
+        const htmlOutput = document.getElementById('htmlOutput');
+        const cssOutput = document.getElementById('cssOutput');
+        const propertyEditor = document.getElementById('propertyEditor');
+
+        let draggedData = null;
+        let selectedElement = null;
+        let elementCounter = 0;
+
+        componentList.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('component-item')) {
+                draggedData = {
+                    html: e.target.getAttribute('data-html'),
+                    label: e.target.getAttribute('data-label') || '要素'
+                };
+            }
+        });
+
+        workspace.addEventListener('dragover', (e) => { e.preventDefault(); workspace.classList.add('drag-over'); });
+        workspace.addEventListener('dragleave', () => { workspace.classList.remove('drag-over'); });
+
+        workspace.addEventListener('drop', (e) => {
+            e.preventDefault();
+            workspace.classList.remove('drag-over');
+
+            if (draggedData) {
+                if (workspace.querySelector('p')) workspace.innerHTML = '';
+
+                elementCounter++;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'node-element';
+                wrapper.innerHTML = draggedData.html;
+                
+                wrapper.dataset.customText = wrapper.innerText.trim();
+                wrapper.dataset.bgColor = '#ffffff';
+                wrapper.dataset.textColor = '#1e293b';
+                wrapper.dataset.padding = '12px';
+
+                wrapper.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    selectElement(wrapper);
+                });
+
+                workspace.appendChild(wrapper);
+                selectElement(wrapper);
+                updateCode();
+            }
+        });
+
+        workspace.addEventListener('click', () => { deselectElement(); });
+
+        function selectElement(el) {
+            deselectElement();
+            selectedElement = el;
+            selectedElement.classList.add('selected');
+            renderPropertyEditor();
+        }
+
+        function deselectElement() {
+            if (selectedElement) {
+                selectedElement.classList.remove('selected');
+                selectedElement = null;
+            }
+            propertyEditor.innerHTML = '<p style="color: #64748b; font-size: 0.8rem;">要素が選択されていません</p>';
+        }
+
+        function renderPropertyEditor() {
+            if (!selectedElement) return;
+
+            propertyEditor.innerHTML = `
+                <div class="property-group">
+                    <label>テキスト内容</label>
+                    <input type="text" id="propText" value="${selectedElement.dataset.customText || ''}">
+                </div>
+                <div class="property-group">
+                    <label>背景色</label>
+                    <input type="color" id="propBg" value="${selectedElement.dataset.bgColor}">
+                </div>
+                <div class="property-group">
+                    <label>文字色</label>
+                    <input type="color" id="propColor" value="${selectedElement.dataset.textColor}">
+                </div>
+                <div class="property-group">
+                    <label>パディング (余白)</label>
+                    <input type="text" id="propPadding" value="${selectedElement.dataset.padding}">
+                </div>
+            `;
+
+            document.getElementById('propText').addEventListener('input', (e) => {
+                selectedElement.dataset.customText = e.target.value;
+                const firstChild = selectedElement.firstElementChild;
+                if (firstChild) firstChild.innerText = e.target.value;
+                else selectedElement.innerText = e.target.value;
+                updateCode();
+            });
+
+            document.getElementById('propBg').addEventListener('input', (e) => {
+                selectedElement.dataset.bgColor = e.target.value;
+                selectedElement.style.backgroundColor = e.target.value;
+                updateCode();
+            });
+
+            document.getElementById('propColor').addEventListener('input', (e) => {
+                selectedElement.dataset.textColor = e.target.value;
+                selectedElement.style.color = e.target.value;
+                updateCode();
+            });
+
+            document.getElementById('propPadding').addEventListener('input', (e) => {
+                selectedElement.dataset.padding = e.target.value;
+                selectedElement.style.padding = e.target.value;
+                updateCode();
+            });
+        }
+
+        function updateCode() {
+            const elements = workspace.querySelectorAll('.node-element');
+            if (elements.length === 0) {
+                htmlOutput.textContent = '<!-- 要素なし -->';
+                cssOutput.textContent = '/* スタイルなし */';
+                return;
+            }
+
+            let htmlString = '';
+            let cssString = '';
+
+            elements.forEach((el, index) => {
+                const className = `gen-elm-${index + 1}`;
+                el.className = `node-element ${className}`;
+
+                htmlString += `  <${el.tagName.toLowerCase()} class="${className}">${el.dataset.customText || el.innerHTML}</${el.tagName.toLowerCase()}>\n`;
+                cssString += `.${className} {\n`;
+                cssString += `  background-color: ${el.dataset.bgColor};\n`;
+                cssString += `  color: ${el.dataset.textColor};\n`;
+                cssString += `  padding: ${el.dataset.padding};\n`;
+                cssString += `}\n\n`;
+            });
+
+            htmlOutput.textContent = htmlString.trim();
+            cssOutput.textContent = cssString.trim();
+        }
+
+        // --- 変換・ダウンロード・共有機能 ---
+
+        // 1. コードコピー
+        document.getElementById('copyCodeBtn').addEventListener('click', () => {
+            const fullCode = `<!-- HTML -->\n${htmlOutput.textContent}\n\n/* CSS */\n${cssOutput.textContent}`;
+            navigator.clipboard.writeText(fullCode);
+            alert('HTMLとCSSの全コードをコピーしました！');
+        });
+
+        // 2. ファイル一式ダウンロード（HTMLファイルとして書き出し）
+        document.getElementById('downloadZipBtn').addEventListener('click', () => {
+            const fullHtml = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Generated Page</title>
+    <style>
+${cssOutput.textContent}
+    </style>
+</head>
+<body>
+${htmlOutput.textContent}
+</body>
+</html>`;
+
+            const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // 3. 共有用データ（Base64エンコードして簡易共有）
+        document.getElementById('shareDataBtn').addEventListener('click', () => {
+            const stateData = {
+                html: htmlOutput.textContent,
+                css: cssOutput.textContent
+            };
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(stateData))));
+            const shareUrl = `${location.origin}${location.pathname}#data=${encoded}`;
+            
+            navigator.clipboard.writeText(shareUrl);
+            alert('共有用URL（ハッシュ付き）をクリップボードにコピーしました！');
+        });
+
+        // クリアボタン
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            workspace.innerHTML = '<p style="color: #94a3b8; text-align: center; margin-top: 40px;">ここにパーツをドラッグ＆ドロップ</p>';
+            deselectElement();
+            updateCode();
+        });
+
+        // カスタムパーツ追加
+        document.getElementById('addCustomBtn').addEventListener('click', () => {
+            const name = document.getElementById('customName').value.trim();
+            const html = document.getElementById('customHtml').value.trim();
+            if (!name || !html) return alert('パーツ名とHTMLを入力してください');
+            if (!name) return alert('パーツ名を入力してください');
+            if (!html) return alert('HTMLを入力してください');
+
+            const newItem = document.createElement('div');
+            newItem.className = 'component-item';
+            newItem.draggable = true;
+            newItem.setAttribute('data-html', html);
+            newItem.setAttribute('data-label', name);
+            newItem.textContent = `${name} (カスタム)`;
+            componentList.appendChild(newItem);
+
+            document.getElementById('customName').value = '';
+            document.getElementById('customHtml').value = '';
+        });
+    </script>
+</body>
+</html>
